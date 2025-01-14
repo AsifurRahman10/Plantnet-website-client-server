@@ -21,8 +21,8 @@ const AddPlant = () => {
     const name = form.name.value;
     const category = form.category.value;
     const description = form.description.value;
-    const price = form.price.value;
-    const quantity = form.quantity.value;
+    const price = parseFloat(form.price.value);
+    const quantity = parseInt(form.quantity.value);
     const image = form.image.files[0];
     const imageUrl = await uploadImage(image);
     const seller = {

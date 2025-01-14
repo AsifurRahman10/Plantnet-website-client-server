@@ -6,22 +6,24 @@ import {
   DialogPanel,
   DialogTitle,
 } from "@headlessui/react";
-import { Fragment, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import useAuth from "../../hooks/useAuth";
 import toast from "react-hot-toast";
 import LoadingSpinner from "../Shared/LoadingSpinner";
 import Button from "../Shared/Button/Button";
+import useAxiosSecure from "../../hooks/useAxiosSecure";
 
-const PurchaseModal = ({ closeModal, isOpen, plant }) => {
+const PurchaseModal = ({ closeModal, isOpen, plant, refetch }) => {
   const { user, loading } = useAuth();
-
+  const { category, price, name, seller, quantity, _id } = plant;
+  const axiosSecure = useAxiosSecure();
   const [totalQuantity, setTotalQuantity] = useState(1);
   const [totalPrice, setTotalPrice] = useState(plant.price);
   const [purchaseInfo, setPurchaseInfo] = useState({
     customer: {
-      name: user?.displayName,
-      email: user?.email,
-      image: user?.photoURL,
+      name: "",
+      email: "",
+      image: "",
     },
     plantID: plant._id,
     price: totalPrice,
@@ -30,7 +32,19 @@ const PurchaseModal = ({ closeModal, isOpen, plant }) => {
     address: "",
     status: "Pending",
   });
-
+  // Update purchaseInfo when user data is available
+  useEffect(() => {
+    if (user?.displayName && user?.email && user?.photoURL) {
+      setPurchaseInfo((prev) => ({
+        ...prev,
+        customer: {
+          name: user.displayName,
+          email: user.email,
+          image: user.photoURL,
+        },
+      }));
+    }
+  }, [user]); // Runs only when the `user` object changes
   // handle quantity operation
   const handleQuantity = (value) => {
     if (value > plant.quantity) {
@@ -47,6 +61,25 @@ const PurchaseModal = ({ closeModal, isOpen, plant }) => {
     setPurchaseInfo((prev) => {
       return { ...prev, quantity: value, price: value * plant.price };
     });
+  };
+
+  // handle purchase
+  const handlePurchase = async () => {
+    try {
+      // fetch data
+      await axiosSecure.post("/order", purchaseInfo);
+      await axiosSecure.patch(`/plants/quantity/${_id}`, {
+        quantityToUpdate: parseInt(totalQuantity),
+        status: "decrease",
+      });
+      toast.success("Order Successful!");
+      refetch();
+    } catch (error) {
+      // catch error
+      console.log(error);
+    } finally {
+      closeModal();
+    }
   };
 
   return (
@@ -141,7 +174,7 @@ const PurchaseModal = ({ closeModal, isOpen, plant }) => {
                 </div>
                 <div className="mt-3">
                   <Button
-                    // onClick={handlePurchase}
+                    onClick={handlePurchase}
                     label={`Pay ${totalPrice}$`}
                   />
                 </div>
