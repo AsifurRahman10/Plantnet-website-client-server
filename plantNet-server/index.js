@@ -126,8 +126,37 @@ async function run() {
       res.send(result)
     })
 
+    // cancel order 
+    app.delete('/cancelOrder/:id', async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const order = await orderCollection.findOne(filter);
+      if (order.status === "shipped") {
+        return res.status(404).send({ message: "order already shipped" })
+      }
+      const result = await orderCollection.deleteOne(filter);
+      res.send(result);
+    })
+
+    // become a seller re
+    app.patch('/becomeSeller/:email', async (req, res) => {
+      const email = req.params.email;
+      const filter = { email: email }
+      const alreadyApplied = await userCollection.findOne(filter);
+      if (alreadyApplied.status === "requested") {
+        return res.status(409).send('You have already requested, wait for some time.')
+      }
+      const updateStatus = {
+        $set: {
+          status: "requested",
+        }
+      }
+      const result = await userCollection.updateOne(filter, updateStatus)
+      res.send(result);
+    })
+
     // my order list
-    app.get('/myOrder/:email', async (req, res) => {
+    app.get('/myOrder/:email', verifyToken, async (req, res) => {
       const email = req.params.email;
       const query = { "customer.email": email };
       const result = await orderCollection.aggregate([
