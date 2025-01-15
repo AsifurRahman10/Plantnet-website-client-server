@@ -53,6 +53,27 @@ async function run() {
     const plantCollection = client.db("PlantDB").collection("plant");
     const orderCollection = client.db("PlantDB").collection("order");
 
+    // admin verify middleWare
+    const verifyAdmin = async (req, res, next) => {
+      const email = req?.user.email;
+      const query = { email: email };
+      const result = await userCollection.findOne(query);
+      if (!result.role == "admin") {
+        return res.status(404).send({ message: "unauthorize access" })
+      }
+      next();
+    }
+    // admin seller middleWare
+    const verifySeller = async (req, res, next) => {
+      const email = req?.user.email;
+      const query = { email: email };
+      const result = await userCollection.findOne(query);
+      if (!result.role == "seller") {
+        return res.status(404).send({ message: "unauthorize access" })
+      }
+      next();
+    }
+
     // add user info while login
     app.post('/users/:email', async (req, res) => {
       const email = req.params.email;
@@ -96,7 +117,7 @@ async function run() {
     })
 
     // add new plant data to db
-    app.post('/addPlants', verifyToken, async (req, res) => {
+    app.post('/addPlants', verifyToken, verifySeller, async (req, res) => {
       const data = req.body;
       const result = await plantCollection.insertOne(data);
       res.send(result);
@@ -138,7 +159,7 @@ async function run() {
       res.send(result);
     })
     // get all user
-    app.get('/allUser/:email', async (req, res) => {
+    app.get('/allUser/:email', verifyToken, verifyAdmin, async (req, res) => {
       const email = req.params.email;
       const query = { email: { $ne: email } }
       const result = await userCollection.find(query).toArray()
@@ -146,7 +167,7 @@ async function run() {
     })
 
     // update a user role
-    app.patch('/user/role/:email', verifyToken, async (req, res) => {
+    app.patch('/user/role/:email', verifyToken, verifyAdmin, async (req, res) => {
       const email = req.params.email;
       const { role } = req.body;
       const filter = { email: email };
