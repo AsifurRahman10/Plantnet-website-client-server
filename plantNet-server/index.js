@@ -127,7 +127,7 @@ async function run() {
     })
 
     // cancel order 
-    app.delete('/cancelOrder/:id', async (req, res) => {
+    app.delete('/cancelOrder/:id', verifyToken, async (req, res) => {
       const id = req.params.id;
       const filter = { _id: new ObjectId(id) };
       const order = await orderCollection.findOne(filter);
@@ -138,8 +138,21 @@ async function run() {
       res.send(result);
     })
 
+    app.get('/allUser', verifyToken, async (req, res) => {
+      const result = await userCollection.find().toArray()
+      res.send(result);
+    })
+
+
+    // get user specfic role
+    app.get('/user/role/:email', async (req, res) => {
+      const email = req.params.email;
+      const query = { email: email };
+      const result = await userCollection.findOne(query);
+      res.send({ role: result.role });
+    })
     // become a seller re
-    app.patch('/becomeSeller/:email', async (req, res) => {
+    app.patch('/becomeSeller/:email', verifyToken, async (req, res) => {
       const email = req.params.email;
       const filter = { email: email }
       const alreadyApplied = await userCollection.findOne(filter);
