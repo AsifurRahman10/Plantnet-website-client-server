@@ -3,16 +3,19 @@ import UserDataRow from "../../../components/Dashboard/TableRows/UserDataRow";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import useAxiosSecure from "../../../hooks/useAxiosSecure";
+import useAuth from "../../../hooks/useAuth";
 
 const ManageUsers = () => {
+  const { user } = useAuth();
   const axiosSecure = useAxiosSecure();
-  const { data } = useQuery({
-    queryKey: ["user"],
+  const { data: users = [], refetch } = useQuery({
+    queryKey: ["users", user.email],
     queryFn: async () => {
-      await axiosSecure.get("/allUser");
+      const { data } = await axiosSecure.get(`/allUser/${user.email}`);
+      return data;
     },
   });
-  console.log(data);
+  console.log(users);
   return (
     <>
       <div className="container mx-auto px-4 sm:px-8">
@@ -53,7 +56,9 @@ const ManageUsers = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  <UserDataRow />
+                  {users.map((user) => (
+                    <UserDataRow key={user._id} user={user} refetch={refetch} />
+                  ))}
                 </tbody>
               </table>
             </div>

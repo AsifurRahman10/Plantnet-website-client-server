@@ -2,9 +2,13 @@ import useAuth from "../../../hooks/useAuth";
 import { Helmet } from "react-helmet-async";
 import coverImg from "../../../assets/images/cover.jpg";
 import useRole from "../../../hooks/useRole";
+import LoadingSpinner from "../../../components/Shared/LoadingSpinner";
 const Profile = () => {
   const { user } = useAuth();
-  const [role] = useRole();
+  const [role, isLoading] = useRole();
+  if (isLoading) {
+    return <LoadingSpinner></LoadingSpinner>;
+  }
   return (
     <div className="flex justify-center items-center h-screen">
       <Helmet>
