@@ -51,6 +51,7 @@ async function run() {
     // collections
     const userCollection = client.db("PlantDB").collection("user");
     const plantCollection = client.db("PlantDB").collection("plant");
+    const orderCollection = client.db("PlantDB").collection("order");
 
     // add user info while login
     app.post('/users/:email', async (req, res) => {
@@ -98,6 +99,70 @@ async function run() {
     app.post('/addPlants', verifyToken, async (req, res) => {
       const data = req.body;
       const result = await plantCollection.insertOne(data);
+      res.send(result);
+    })
+
+    // add Purchase data to db
+    app.post('/order', verifyToken, async (req, res) => {
+      const data = req.body;
+      const result = await orderCollection.insertOne(data);
+      res.send(result);
+    })
+
+    // Manage plant quantity
+    app.patch('/plants/quantity/:id', verifyToken, async (req, res) => {
+      const id = req.params.id
+      const { quantityToUpdate, status } = req.body
+      const filter = { _id: new ObjectId(id) }
+      let updateDoc = {
+        $inc: { quantity: -quantityToUpdate },
+      }
+      if (status === 'increase') {
+        updateDoc = {
+          $inc: { quantity: quantityToUpdate },
+        }
+      }
+      const result = await plantCollection.updateOne(filter, updateDoc)
+      res.send(result)
+    })
+
+    // my order list
+    app.get('/myOrder/:email', async (req, res) => {
+      const email = req.params.email;
+      const query = { "customer.email": email };
+      const result = await orderCollection.aggregate([
+        {
+          $match: query,
+        },
+        {
+          $addFields: {
+            plantID: { $toObjectId: '$plantID' },
+          },
+        },
+        {
+          $lookup: {
+            from: 'plant',
+            localField: 'plantID',
+            foreignField: '_id',
+            as: 'plants',
+          },
+        },
+        {
+          $unwind: '$plants'
+        },
+        {
+          $addFields: {
+            name: "$plants.name",
+            image: "$plants.imageUrl",
+            category: "$plants.category",
+          },
+        },
+        {
+          $project: {
+            plants: 0
+          }
+        }
+      ]).toArray();
       res.send(result);
     })
 
