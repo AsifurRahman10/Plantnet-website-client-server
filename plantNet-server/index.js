@@ -137,9 +137,23 @@ async function run() {
       const result = await orderCollection.deleteOne(filter);
       res.send(result);
     })
+    // get all user
+    app.get('/allUser/:email', async (req, res) => {
+      const email = req.params.email;
+      const query = { email: { $ne: email } }
+      const result = await userCollection.find(query).toArray()
+      res.send(result);
+    })
 
-    app.get('/allUser', verifyToken, async (req, res) => {
-      const result = await userCollection.find().toArray()
+    // update a user role
+    app.patch('/user/role/:email', verifyToken, async (req, res) => {
+      const email = req.params.email;
+      const { role } = req.body;
+      const filter = { email: email };
+      const updateRole = {
+        $set: { role, status: "verified" },
+      }
+      const result = await userCollection.updateOne(filter, updateRole)
       res.send(result);
     })
 
