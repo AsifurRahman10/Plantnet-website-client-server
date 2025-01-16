@@ -9,9 +9,13 @@ import {
 import { Fragment, useEffect, useState } from "react";
 import useAuth from "../../hooks/useAuth";
 import toast from "react-hot-toast";
-import LoadingSpinner from "../Shared/LoadingSpinner";
 import Button from "../Shared/Button/Button";
 import useAxiosSecure from "../../hooks/useAxiosSecure";
+import { Elements } from "@stripe/react-stripe-js";
+import { loadStripe } from "@stripe/stripe-js";
+import { CheckoutForm } from "./CheckoutForm";
+
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
 
 const PurchaseModal = ({ closeModal, isOpen, plant, refetch }) => {
   const { user, loading } = useAuth();
@@ -172,6 +176,12 @@ const PurchaseModal = ({ closeModal, isOpen, plant, refetch }) => {
                     />
                   </p>
                 </div>
+
+                {/* stripe */}
+
+                <Elements stripe={stripePromise}>
+                  <CheckoutForm />
+                </Elements>
                 <div className="mt-3">
                   <Button
                     onClick={handlePurchase}
