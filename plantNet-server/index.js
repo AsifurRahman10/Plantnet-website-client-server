@@ -87,6 +87,23 @@ async function run() {
       res.send(result)
     })
 
+    // get plants from seller data
+    app.get('/plants/:email', verifyToken, verifySeller, async (req, res) => {
+      const email = req.params.email;
+      const query = { "seller.email": email }
+      const result = await plantCollection.find(query).toArray();
+      res.send(result);
+    })
+
+    // delete a plant data
+    app.delete('/plant/:id', async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const result = await plantCollection.deleteOne(filter);
+      res.send(result);
+
+    })
+
     // Generate jwt token
     app.post('/jwt', async (req, res) => {
       const email = req.body
@@ -203,7 +220,7 @@ async function run() {
       res.send(result);
     })
 
-    // my order list
+    // my order list {customer}
     app.get('/myOrder/:email', verifyToken, async (req, res) => {
       const email = req.params.email;
       const query = { "customer.email": email };
@@ -242,6 +259,50 @@ async function run() {
       ]).toArray();
       res.send(result);
     })
+    // my order list {seller}
+    app.get(
+      '/seller-orders/:email',
+      async (req, res) => {
+        const email = req.params.email
+        console.log(email);
+        const result = await orderCollection
+          .aggregate([
+            {
+              $match: { seller: { $regex: new RegExp(`^${email}$`, 'i') } },
+            },
+            {
+              $addFields: {
+                plantID: { $toObjectId: '$plantID' }, //convert plantId string field to objectId field
+              },
+            },
+            {
+              $lookup: {
+                // go to a different collection and look for data
+                from: 'plant', // collection name
+                localField: 'plantID', // local data that you want to match
+                foreignField: '_id', // foreign field name of that same data
+                as: 'plants', // return the data as plants array (array naming)
+              },
+            },
+            { $unwind: '$plants' }, // unwind lookup result, return without array
+            {
+              $addFields: {
+                // add these fields in order object
+                name: '$plants.name',
+              },
+            },
+            {
+              // remove plants object property from order object
+              $project: {
+                plants: 0,
+              },
+            },
+          ])
+          .toArray()
+
+        res.send(result)
+      }
+    )
 
     // get all the plant data from db
     app.get('/allPlants', async (req, res) => {
@@ -249,8 +310,10 @@ async function run() {
       res.send(result);
     })
     // get a single plant data
-    app.get('/plants/:id', verifyToken, async (req, res) => {
+    app.get('/plant/:id', async (req, res) => {
+      console.log('hello');
       const id = req.params.id;
+      console.log(id);
       const filter = { _id: new ObjectId(id) };
       const result = await plantCollection.findOne(filter);
       res.send(result);
