@@ -5,7 +5,7 @@ const cookieParser = require('cookie-parser')
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb')
 const jwt = require('jsonwebtoken')
 const morgan = require('morgan')
-
+const stripe = require("stripe")(process.env.PAYMENT_SECRET_KEY);
 const port = process.env.PORT || 9000
 const app = express()
 // middleware
@@ -19,6 +19,26 @@ app.use(cors(corsOptions))
 app.use(express.json())
 app.use(cookieParser())
 app.use(morgan('dev'))
+
+// stripe verification
+app.post('/create-payment-intent', async (req, res) => {
+  const { quantity, plantId } = req.body;
+  const plant = await plantsCollection.findOne({
+    _id: new ObjectId(plantId),
+  })
+  if (!plant) {
+    return res.status(400).send({ message: 'Plant Not Found' })
+  }
+  const totalPrice = quantity * plant.price * 100 // total price in cent (poysha)
+  const { client_secret } = await stripe.paymentIntents.create({
+    amount: totalPrice,
+    currency: 'usd',
+    automatic_payment_methods: {
+      enabled: true,
+    },
+  })
+  res.send({ clientSecret: client_secret })
+})
 
 const verifyToken = async (req, res, next) => {
   const token = req.cookies?.token
@@ -303,6 +323,80 @@ async function run() {
         res.send(result)
       }
     )
+
+
+    // update a order status
+    app.patch('/orders/:id', verifyToken, verifySeller, async (req, res) => {
+      const id = req.params.id
+      const { status } = req.body
+      const filter = { _id: new ObjectId(id) }
+      const updateDoc = {
+        $set: { status },
+      }
+      const result = await orderCollection.updateOne(filter, updateDoc)
+      res.send(result)
+    })
+
+    // get admin status
+    app.get("/admin-stats", async (req, res) => {
+      const totalUser = await userCollection.estimatedDocumentCount()
+      const totalPlants = await plantCollection.estimatedDocumentCount()
+
+      const allOrder = await orderCollection.find().toArray();
+
+      // generate chart data
+      const chartData = await orderCollection
+        .aggregate([
+          { $sort: { _id: -1 } },
+          {
+            $addFields: {
+              formattedDate: {
+                $dateToString: {
+                  format: '%Y-%m-%d',
+                  date: { $toDate: '$_id' },
+                },
+              },
+            },
+          },
+          {
+            $group: {
+              _id: '$formattedDate',
+              quantity: { $sum: '$quantity' },
+              price: { $sum: '$price' },
+              order: { $sum: 1 },
+            },
+          },
+          {
+            $project: {
+              _id: 0,
+              date: '$_id',
+              quantity: 1,
+              order: 1,
+              price: 1,
+            },
+          },
+        ])
+        .toArray();
+
+      // get revenue and total order 
+      const orderDetails = await orderCollection.aggregate([
+        {
+          $group: {
+            _id: null,
+            totalRevenue: { $sum: "$price" },
+            totalOrder: { $sum: 1 }
+          }
+        },
+        {
+          $project: {
+            _id: 0,
+          }
+        }
+      ]).next()
+
+      res.send({ totalUser, totalPlants, ...orderDetails, chartData })
+
+    })
 
     // get all the plant data from db
     app.get('/allPlants', async (req, res) => {
