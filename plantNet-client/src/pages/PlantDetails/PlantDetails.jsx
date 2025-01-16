@@ -21,10 +21,11 @@ const PlantDetails = () => {
   } = useQuery({
     queryKey: ["id", id],
     queryFn: async () => {
-      const { data } = await axiosSecure.get(`/plants/${id}`);
+      const { data } = await axiosSecure.get(`/plant/${id}`);
       return data;
     },
   });
+  console.log(plant);
   if (isLoading) {
     return <LoadingSpinner></LoadingSpinner>;
   }
@@ -76,7 +77,7 @@ const PlantDetails = () => {
                 gap-2
               "
           >
-            <div>Seller: {plant.seller.name}</div>
+            <div>Seller: {plant?.seller?.name}</div>
 
             <img
               className="rounded-full"
@@ -84,7 +85,7 @@ const PlantDetails = () => {
               width="30"
               alt="Avatar"
               referrerPolicy="no-referrer"
-              src={plant.seller.image}
+              src={plant?.seller?.image}
             />
           </div>
           <hr className="my-6" />
